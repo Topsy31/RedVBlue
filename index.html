@@ -9,10 +9,24 @@
       display: block;
       margin: 20px auto;
     }
-    #iterationCount, #colorCounts, #winnerAnnouncement {
+    #iterationCount, #colorCounts, #winnerAnnouncement, #restartButton {
       text-align: center;
       font-size: 18px;
       margin-top: 10px;
+    }
+    #restartButton {
+      display: block;
+      margin: 10px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    #restartButton:hover {
+      background-color: #218838;
     }
   </style>
 </head>
@@ -21,48 +35,61 @@
   <div id="iterationCount">Iteration: 0</div>
   <div id="colorCounts">Red: 0 | Blue: 0</div>
   <div id="winnerAnnouncement"></div>
+  <button id="restartButton" onclick="restartGame()">🔄 Play Again</button>
   <script>
     // Parameters
     const gridSize = 50;           // 50x50 grid
     const cellSize = 10;           // Pixel size of each cell
-    const interval = 1;          // Milliseconds between frames
+    const interval = 100;          // Milliseconds between frames
     const historyLimit = 10;       // For checking equilibrium
     const conquestThreshold = 4;   // White turns into Red/Blue if surrounded by 4 of the same color
 
-    // Set initial counts
-    const totalCells = gridSize * gridSize;
-    const redCount = Math.floor(totalCells * 0.1);   // 25% red
-    const blueCount = Math.floor(totalCells * 0.1);  // 25% blue
-    const whiteCount = totalCells - redCount - blueCount; // 50% white
+    let totalCells = gridSize * gridSize;
+    let redCount = Math.floor(totalCells * 0.25);   
+    let blueCount = Math.floor(totalCells * 0.25);  
+    let whiteCount = totalCells - redCount - blueCount; 
 
-    // Set canvas dimensions
-    const canvas = document.getElementById('gameCanvas');
-    canvas.width = gridSize * cellSize;
-    canvas.height = gridSize * cellSize;
-    const ctx = canvas.getContext('2d');
-    const iterationDisplay = document.getElementById('iterationCount');
-    const colorCountsDisplay = document.getElementById('colorCounts');
-    const winnerAnnouncement = document.getElementById('winnerAnnouncement');
+    let canvas, ctx, iterationDisplay, colorCountsDisplay, winnerAnnouncement;
+    let iteration, grid, previousStates, running;
+    let intervalId;
 
-    let iteration = 0;
-    let grid = initializeGrid(gridSize, redCount, blueCount, whiteCount);
-    let previousStates = [JSON.stringify(grid)];
-    let running = true;
+    function setupGame() {
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+      iterationDisplay = document.getElementById('iterationCount');
+      colorCountsDisplay = document.getElementById('colorCounts');
+      winnerAnnouncement = document.getElementById('winnerAnnouncement');
 
-    // Function to initialize grid
+      canvas.width = gridSize * cellSize;
+      canvas.height = gridSize * cellSize;
+
+      iteration = 0;
+      grid = initializeGrid(gridSize, redCount, blueCount, whiteCount);
+      previousStates = [JSON.stringify(grid)];
+      running = true;
+
+      drawGrid(grid);
+      updateColorCounts();
+      clearInterval(intervalId);
+      intervalId = setInterval(gameLoop, interval);
+    }
+
+    function restartGame() {
+      winnerAnnouncement.innerText = ""; // Clear winner message
+      setupGame();
+    }
+
     function initializeGrid(size, redCount, blueCount, whiteCount) {
       const cells = [];
       for (let i = 0; i < redCount; i++) cells.push(1);
       for (let i = 0; i < blueCount; i++) cells.push(2);
       for (let i = 0; i < whiteCount; i++) cells.push(0);
-      
-      // Shuffle the cells array
+
       for (let i = cells.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [cells[i], cells[j]] = [cells[j], cells[i]];
       }
-      
-      // Build the 2D grid
+
       const grid = [];
       for (let i = 0; i < size; i++) {
         grid[i] = [];
@@ -106,19 +133,17 @@
         for (let j = 0; j < size; j++) {
           const { red: redNbrs, blue: blueNbrs } = countNeighbors(grid, i, j);
 
-          // Battle rule: probabilistic color conversion
           if (grid[i][j] === 1 && blueNbrs > 0) {
             if (Math.random() < blueNbrs / 8) newGrid[i][j] = 2;
           } else if (grid[i][j] === 2 && redNbrs > 0) {
             if (Math.random() < redNbrs / 8) newGrid[i][j] = 1;
           }
 
-          // Conquest rule: white cells turn if 4+ neighbors are the same color
           if (grid[i][j] === 0) {
             if (redNbrs >= conquestThreshold && blueNbrs === 0) {
-              newGrid[i][j] = 1; // Convert to Red
+              newGrid[i][j] = 1;
             } else if (blueNbrs >= conquestThreshold && redNbrs === 0) {
-              newGrid[i][j] = 2; // Convert to Blue
+              newGrid[i][j] = 2;
             }
           }
         }
@@ -179,9 +204,7 @@
       winnerAnnouncement.innerText = `Final Count - Red: ${red}, Blue: ${blue}\n${winnerMessage}`;
     }
 
-    drawGrid(grid);
-    updateColorCounts();
-    const intervalId = setInterval(gameLoop, interval);
+    setupGame();
   </script>
 </body>
 </html>
